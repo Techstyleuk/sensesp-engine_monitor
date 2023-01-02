@@ -6,8 +6,9 @@ You should immediately see output on the serial monitor!
 
 The files should replace the files of the same name in the template.  locations are as follows:
 
-'src/main.cpp` and 
-`platformio.ini`
+src/main.cpp
+
+platformio.ini
 
 Comprehensive documentation for SensESP, including how to get started with your own project, is available at the [SensESP documentation site](https://signalk.org/SensESP/).
 
