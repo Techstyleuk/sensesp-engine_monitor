@@ -49,7 +49,7 @@ class FuelInterpreter : public CurveInterpolator {
   }
 };
 
-  // JG Added this for Pressure lookup
+  // Oil Pressure lookup
 class PressureInterpreter : public CurveInterpolator {
  public:
   PressureInterpreter(String config_path = "")
@@ -77,15 +77,8 @@ class PressureInterpreter : public CurveInterpolator {
 
 reactesp::ReactESP app;
 
-  // Mat Bailey's code for BMP280
-  // Adafruit_BMP280 bmp280;
 
-  // float read_temp_callback() { return (bmp280.readTemperature() + 273.15);}
-  // float read_pressure_callback() { return (bmp280.readPressure());}
-
-// JG Added for BME280
-// dont think this is needed: #define SCL_PIN 22
-// dont think this is needed: #define SDA_PIN 21
+// BME280
   
     Adafruit_BME280 bme280;
 
@@ -100,8 +93,9 @@ void setup() {
   SetupSerialDebug(115200);
 #endif
 
-  Wire.begin(22,21);                // join i2c bus (address optional for master)
-  //Serial.begin(9600);          // start serial communication at 9600bps
+  Wire.begin(21,22);                // join i2c bus (address optional for master)
+// 
+ //Serial.begin(9600);          // start serial communication at 9600bps
   
   //Serial.println(F("BME280 Forced Mode Test."));
 
@@ -111,7 +105,8 @@ void setup() {
       //                "try a different address!"));
     //while (1) delay(10);// could need a delay here:
   //}   
-
+//
+ 
   // Construct the global SensESPApp() object
   SensESPAppBuilder builder;
   sensesp_app = (&builder)
@@ -126,17 +121,52 @@ void setup() {
 
 /// 1-Wire Temp Sensors - Exhaust Temp Sensors ///
 
-  DallasTemperatureSensors* dts = new DallasTemperatureSensors(25);
+  DallasTemperatureSensors* dts = new DallasTemperatureSensors(25); //digital 2
 
- // test Oil temp (fasten to oil P sensor) - /propulsion/engine/oilTemptest
+ // Oil temp (fasten to oil P sensor) - /propulsion/engine/oilTemperature
   auto* oil_temp =
-      new OneWireTemperature(dts, 1000, "/Oil Temptest/oneWire");
+      new OneWireTemperature(dts, 1000, "/Oil Temperature/oneWire");
 
-  oil_temp->connect_to(new Linear(1.0, 0.0, "/Oil Temptest/linear"))
+  oil_temp->connect_to(new Linear(1.0, 0.0, "/Oil Temperature/linear"))
       ->connect_to(
-          new SKOutputFloat("propulsion.engine.oilTemptest",
-                             "/Oil Temptest/sk_path"));
+          new SKOutputFloat("propulsion.engine.oilTemperature",
+                             "/Oil Temperature/sk_path"));
 
+// Aft Cabin temp - /environment/inside/aftCabin/temperature                             
+  auto* aft_cabin_temp =
+      new OneWireTemperature(dts, 1000, "/Aft Cabin Temperature/oneWire");
+
+  aft_cabin_temp->connect_to(new Linear(1.0, 0.0, "/Aft Cabin Temperature/linear"))
+      ->connect_to(
+          new SKOutputFloat("environment.inside.aftCabin.temperature",
+                             "/Aft Cabin Temperature/sk_path"));
+
+// Exhaust Elbow Temp sensor - /propulsion/engine/intakeManifoldTemperature
+  auto* elbow_temp =
+      new OneWireTemperature(dts, 1000, "/Elbow Temperature/oneWire");
+
+  elbow_temp->connect_to(new Linear(1.0, 0.0, "/Elbow Temperature/linear"))
+      ->connect_to(
+          new SKOutputFloat("propulsion.engine.intakeManifoldTemperature",
+                             "/Elbow Temperature/sk_path"));
+
+// Exhaust barrel sensor - /propulsion/engine/exhaustTemperature
+  auto* exhaust_temp =
+      new OneWireTemperature(dts, 1000, "/Exhaust Temperature/oneWire");
+
+  exhaust_temp->connect_to(new Linear(1.0, 0.0, "/Exhaust Temperature/linear"))
+      ->connect_to(
+          new SKOutputFloat("propulsion.engine.exhaustTemperature",
+                             "/Exhaust Temperature/sk_path"));
+
+// Alternator Temperature - /electrical/alternator/temperature
+  auto* alternator_temp =
+      new OneWireTemperature(dts, 1000, "/Alternator Temperature/oneWire");
+
+  alternator_temp->connect_to(new Linear(1.0, 0.0, "/Alternator Temperature/linear"))
+      ->connect_to(
+          new SKOutputFloat("electrical.alternator.temperature",
+                             "/Alternator Temperature/sk_path"));
 
  //RPM Application/////
 
@@ -157,28 +187,8 @@ void setup() {
           ->connect_to(new FuelInterpreter("/Engine Fuel/curve"))
           ->connect_to(new SKOutputFloat("propulsion.engine.fuel.rate", "/Engine Fuel/sk_path"));                                       
 
-/// BMP280 SENSOR CODE - Engine Room Temp Sensor Mat Baileys code////  
-
-  // 0x77 is the default address. Some chips use 0x76, which is shown here.
-  // If you need to use the TwoWire library instead of the Wire library, there
-  // is a different constructor: see bmp280.h
-
-  //bmp280.begin(0x76);
-
-  // Create a RepeatSensor with float output that reads the temperature
-  // using the function defined above.
- // auto* engine_room_temp =
-     // new RepeatSensor<float>(5000, read_temp_callback);
-
- // auto* engine_room_pressure = 
-     // new RepeatSensor<float>(60000, read_pressure_callback);
-
-  // Send the temperature to the Signal K server as a Float
- // engine_room_temp->connect_to(new SKOutputFloat("propulsion.engineRoom.temperature"));
-
-  //engine_room_pressure->connect_to(new SKOutputFloat("propulsion.engineRoom.pressure"));
-
-/// JG BME280 SENSOR CODE - Temp/Humidity/Altitude/Pressure Sensor ////  
+ 
+/// BME280 SENSOR CODE - Temp/Humidity/Altitude/Pressure Sensor ////  
 
   // 0x77 is the default address. Some chips use 0x76, which is shown here.
   // If you need to use the TwoWire library instead of the Wire library, there
@@ -203,26 +213,11 @@ void setup() {
 
   bme280_humidity->connect_to(new SKOutputFloat("environment.inside.engineBay.relativeHumidity"));
 
-//// Engine Temp Config (Mat Baileys Code)////
-
-//const float Vin = 3.3;
-//const float R1 = 1000.0;
-//auto* analog_input = new AnalogInput(36, 2000);
-
-//analog_input->connect_to(new AnalogVoltage())
-      //->connect_to(new VoltageDividerR2(R1, Vin, "/Engine Temp/sender"))
-      //->connect_to(new TemperatureInterpreter("/Engine Temp/curve"))
-      //->connect_to(new Linear(1.0, 0.0, "/Engine Temp/calibrate"))
-      //->connect_to(new SKOutputFloat("propulsion.engine.temperature", "/Engine Temp/sk_path"));
-
-  // Start networking, SK server connections and other SensESP internals
-
-//// JG Added Pressure Sender Config ////
+//// Pressure Sender Config ////
 
 const float Vin = 3.45;
 const float R1 = 47.0;
-auto* analog_input = new AnalogInput(36, 500); //- this was the original, but I don't know what the 2000 means
-//auto* analog_input = new AnalogInput(36);
+auto* analog_input = new AnalogInput(36, 500); //- Pin 36 is Analogue 0
 
 analog_input->connect_to(new AnalogVoltage(Vin,Vin))
       ->connect_to(new VoltageDividerR2(R1, Vin, "/Engine Pressure/sender"))
