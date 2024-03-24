@@ -1,16 +1,11 @@
-// SenESP Engine Sensors
+// SenESP Engine Monitor
+// Production Code for Apres' Engine Monitor
+// Last modification was to add Bilge monitor code
 
-#include <Adafruit_BMP280.h>
 #include <Adafruit_BME280.h>  //JG Added
 #include <Wire.h>
-
-
 #include "sensesp_onewire/onewire_temperature.h"
-
-
 #include <Arduino.h>
-
-
 #include "sensesp/sensors/analog_input.h"
 #include "sensesp/sensors/digital_input.h"
 #include "sensesp/sensors/sensor.h"
@@ -21,9 +16,8 @@
 #include "sensesp/transforms/analogvoltage.h"
 #include "sensesp/transforms/curveinterpolator.h"
 #include "sensesp/transforms/voltagedivider.h"
-#include "sensesp/sensors/digital_input.h"
 #include "sensesp/transforms/frequency.h"
-
+#include "sensesp/transforms/lambda_transform.h"
 
 using namespace sensesp;
 
@@ -111,7 +105,7 @@ void setup() {
   SensESPAppBuilder builder;
   sensesp_app = (&builder)
                     // Set a custom hostname for the app.
-                    ->set_hostname("SensESP")
+                    ->set_hostname("Apres-Eng-Mon")
                     // Optionally, hard-code the WiFi and Signal K server
                     // settings. This is normally not needed.
                     //->set_wifi("My WiFi SSID", "my_wifi_password")
@@ -178,13 +172,12 @@ void setup() {
 
   sensor->connect_to(new Frequency(multiplier, config_path_calibrate))  
   // connect the output of sensor to the input of Frequency()
-
-         ->connect_to(new SKOutputFloat("propulsion.engine.revolutions", config_path_skpath));  
+          ->connect_to(new SKOutputFloat("propulsion.engine.revolutions", config_path_skpath));  
           // connect the output of Frequency() to a Signal K Output as a number
 
   sensor->connect_to(new Frequency(6))
   // times by 6 to go from Hz to RPM
-          ->connect_to(new FuelInterpreter("/Engine Fuel/curve"))
+           ->connect_to(new FuelInterpreter("/Engine Fuel/curve"))
           ->connect_to(new SKOutputFloat("propulsion.engine.fuel.rate", "/Engine Fuel/sk_path"));                                       
 
  
@@ -224,6 +217,25 @@ analog_input->connect_to(new AnalogVoltage(Vin,Vin))
       ->connect_to(new PressureInterpreter("/Engine Pressure/curve"))
       ->connect_to(new Linear(1.0, 0.0, "/Engine Pressure/calibrate"))
       ->connect_to(new SKOutputFloat("propulsion.engine.oilPressure", "/Engine Pressure/sk_path"));
+
+//// Bilge Monitor /////
+auto* bilge = new DigitalInputState(13, INPUT_PULLUP, 5000);  //- Pin 13 is Digital 7
+
+	auto int_to_string_function = [](int input) ->String {
+		 if (input == 1) {
+		   return "Water present!";
+		 } 
+		 else { // input == 0
+		   return "bilge clear";
+		 }
+	};
+
+auto int_to_string_transform = new LambdaTransform<int, String>(int_to_string_function);
+
+bilge->connect_to(int_to_string_transform)
+      ->connect_to(new SKOutputString("propulsion.engine.bilge"));
+
+bilge->connect_to(new SKOutputFloat("propulsion.engine.bilge.raw"));
 
   // Start networking, SK server connections and other SensESP internals
   sensesp_app->start();
