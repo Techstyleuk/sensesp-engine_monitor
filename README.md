@@ -1,5 +1,7 @@
 # SensESP Engine Monitor
 
+*** A version of this updated for SesnseESP Version 3 can be found [here](https://github.com/Techstyleuk/SensESP_V3-Engine_Monitor) ***
+
 This repository provides a copy of 'main.cpp' and 'platformio.ini' to be used in conjuction with the template for [SensESP](https://github.com/SignalK/SensESP/) projects.
 download the files and try building and uploading the project to an ESP32 device.
 You should immediately see output on the serial monitor!
